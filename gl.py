@@ -3,6 +3,7 @@ from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
 
 from camera import Camera
+from skybox import Skybox
 
 class Renderer(object):
     def __init__(self, screen):
@@ -17,10 +18,27 @@ class Renderer(object):
         self.camera = Camera(self.width, self.height)
 
         self.scene = []
-        self.activeShader = None
+        
 
         self.filledMode = False
         self.ToggleFilledMode()
+
+        self.activeShader = None
+
+        self.skybox = None
+
+        self.pointLight = glm.vec3(0,0,0)
+        self.ambientLight = 0.1
+
+
+        self.value = 0.0;
+        self.elapsedTime = 0.0;
+
+
+
+    def CreateSkybox(self, textureList):
+        self.skybox = Skybox(textureList)
+        self.skybox.cameraRef = self.camera
 
 
     def ToggleFilledMode(self):
@@ -47,6 +65,10 @@ class Renderer(object):
 
         self.camera.Update()
 
+        if self.skybox is not None:
+            self.skybox.Render()
+
+
         if self.activeShader is not None:
             glUseProgram(self.activeShader)
 
@@ -55,6 +77,17 @@ class Renderer(object):
 
             glUniformMatrix4fv( glGetUniformLocation(self.activeShader, "projectionMatrix"),
                                 1, GL_FALSE, glm.value_ptr(self.camera.projectionMatrix) )
+
+            glUniform3fv( glGetUniformLocation(self.activeShader, "pointLight"), 1, glm.value_ptr(self.pointLight) )
+            glUniform1f( glGetUniformLocation(self.activeShader, "ambientLight"), self.ambientLight )
+
+            glUniform1f( glGetUniformLocation(self.activeShader, "value"), self.value )
+            glUniform1f( glGetUniformLocation(self.activeShader, "time"), self.elapsedTime )
+
+
+            glUniform1i( glGetUniformLocation(self.activeShader, "tex0"), 0)
+            glUniform1i( glGetUniformLocation(self.activeShader, "tex1"), 1)
+
 
 
         for obj in self.scene:

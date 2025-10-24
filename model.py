@@ -39,6 +39,7 @@ class Model(object):
 
 		positions = []
 		texCoords = []
+		normals = []
 
 		self.vertexCount = 0
 
@@ -46,10 +47,12 @@ class Model(object):
 
 			facePositions = []
 			faceTexCoords = []
+			faceNormals = []
 
 			for i in range(len(face)):
 				facePositions.append( self.objFile.vertices [ face[i][0] - 1 ] )
 				faceTexCoords.append( self.objFile.texCoords[ face[i][1] - 1 ] )
+				faceNormals.append( self.objFile.normals[ face[i][2] - 1 ] )
 
 
 			for value in facePositions[0]: positions.append(value)
@@ -60,6 +63,10 @@ class Model(object):
 			for value in faceTexCoords[1]: texCoords.append(value)
 			for value in faceTexCoords[2]: texCoords.append(value)
 
+			for value in faceNormals[0]: normals.append(value)
+			for value in faceNormals[1]: normals.append(value)
+			for value in faceNormals[2]: normals.append(value)
+
 			self.vertexCount += 3
 
 			if len(face) == 4:
@@ -68,14 +75,19 @@ class Model(object):
 				for value in facePositions[3]: positions.append(value)
 
 				for value in faceTexCoords[0]: texCoords.append(value)
-				for value in faceTexCoords[1]: texCoords.append(value)
 				for value in faceTexCoords[2]: texCoords.append(value)
+				for value in faceTexCoords[3]: texCoords.append(value)
+
+				for value in faceNormals[0]: normals.append(value)
+				for value in faceNormals[2]: normals.append(value)
+				for value in faceNormals[3]: normals.append(value)
 
 				self.vertexCount += 3
 
 
 		self.posBuffer = Buffer(positions)
 		self.texCoordsBuffer = Buffer(texCoords)
+		self.normalsBuffer = Buffer(normals)
 
 
 	def AddTexture(self, filename):
@@ -110,12 +122,15 @@ class Model(object):
 
 		self.posBuffer.Use(0, 3)
 		self.texCoordsBuffer.Use(1, 2)
+		self.normalsBuffer.Use(2, 3)
 
 
 		glDrawArrays(GL_TRIANGLES, 0, self.vertexCount)
 
 		glDisableVertexAttribArray(0)
 		glDisableVertexAttribArray(1)
+		glDisableVertexAttribArray(2)
+
 
 
 
