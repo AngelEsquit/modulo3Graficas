@@ -84,6 +84,9 @@ class Renderer(object):
             glUniform1f( glGetUniformLocation(self.activeShader, "value"), self.value )
             glUniform1f( glGetUniformLocation(self.activeShader, "time"), self.elapsedTime )
 
+            # Provide camera world position for shaders that use it
+            glUniform3fv( glGetUniformLocation(self.activeShader, "cameraPos"), 1, glm.value_ptr(self.camera.position) )
+
 
             glUniform1i( glGetUniformLocation(self.activeShader, "tex0"), 0)
             glUniform1i( glGetUniformLocation(self.activeShader, "tex1"), 1)
