@@ -84,10 +84,6 @@ while isRunning:
 				currFragmentShader = scanlines_fragment_shader
 				rend.SetShaders(currVertexShader, currFragmentShader)
 
-			if event.key == pygame.K_4:
-				currFragmentShader = checker_fragment_shader
-				rend.SetShaders(currVertexShader, currFragmentShader)
-
 			if event.key == pygame.K_5:
 				# Unlit fragment (clear fragment effects)
 				currFragmentShader = unlit_fragment_shader
@@ -112,58 +108,71 @@ while isRunning:
 				rend.SetShaders(currVertexShader, currFragmentShader)
 
 
+	# Camera-relative movement
+	moveSpeed = 1.3
+	identity = glm.mat4(1)
+	pitchMat = glm.rotate(identity, glm.radians(rend.camera.rotation.x), glm.vec3(1,0,0))
+	yawMat   = glm.rotate(identity, glm.radians(rend.camera.rotation.y), glm.vec3(0,1,0))
+	rollMat  = glm.rotate(identity, glm.radians(rend.camera.rotation.z), glm.vec3(0,0,1))
+	rotationMat = pitchMat * yawMat * rollMat
+
+	# Local axes in world space
+	right   = glm.normalize(glm.vec3(rotationMat * glm.vec4(1,0,0,0)))
+	up      = glm.normalize(glm.vec3(rotationMat * glm.vec4(0,1,0,0)))
+	forward = glm.normalize(glm.vec3(rotationMat * glm.vec4(0,0,-1,0)))
+
 	if keys[K_UP]:
-		rend.camera.position.z += 1 * deltaTime
+		rend.camera.position += forward * (moveSpeed * deltaTime)
 
 	if keys[K_DOWN]:
-		rend.camera.position.z -= 1 * deltaTime
+		rend.camera.position -= forward * (moveSpeed * deltaTime)
 
 	if keys[K_RIGHT]:
-		rend.camera.position.x += 1 * deltaTime
+		rend.camera.position += right * (moveSpeed * deltaTime)
 
 	if keys[K_LEFT]:
-		rend.camera.position.x -= 1 * deltaTime
+		rend.camera.position -= right * (moveSpeed * deltaTime)
 
 
 	# Camera rotation controls (degrees per second)
-	rotSpeed = 60.0
+	rotSpeed = 35.0
 
-	# Pitch (X axis): T/G
-	if keys[K_t]:
+	# Pitch (X axis): W/S
+	if keys[K_w]:
 		rend.camera.rotation.x += rotSpeed * deltaTime
-	if keys[K_g]:
+	if keys[K_s]:
 		rend.camera.rotation.x -= rotSpeed * deltaTime
 
-	# Yaw (Y axis): F/H
-	if keys[K_f]:
+	# Yaw (Y axis): A/D
+	if keys[K_a]:
 		rend.camera.rotation.y += rotSpeed * deltaTime
-	if keys[K_h]:
+	if keys[K_d]:
 		rend.camera.rotation.y -= rotSpeed * deltaTime
 
-	# Roll (Z axis): R/Y
-	if keys[K_r]:
+	# Roll (Z axis): Q/E
+	if keys[K_q]:
 		rend.camera.rotation.z += rotSpeed * deltaTime
-	if keys[K_y]:
+	if keys[K_e]:
 		rend.camera.rotation.z -= rotSpeed * deltaTime
 
 
 
-	if keys[K_w]:
+	if keys[K_t]:
 		rend.pointLight.z -= 10 * deltaTime
 
-	if keys[K_s]:
+	if keys[K_g]:
 		rend.pointLight.z += 10 * deltaTime
 
-	if keys[K_a]:
+	if keys[K_f]:
 		rend.pointLight.x -= 10 * deltaTime
 
-	if keys[K_d]:
+	if keys[K_h]:
 		rend.pointLight.x += 10 * deltaTime
 
-	if keys[K_q]:
+	if keys[K_r]:
 		rend.pointLight.y -= 10 * deltaTime
 
-	if keys[K_e]:
+	if keys[K_y]:
 		rend.pointLight.y += 10 * deltaTime
 
 
