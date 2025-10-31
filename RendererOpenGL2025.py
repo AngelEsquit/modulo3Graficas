@@ -3,6 +3,7 @@ import pygame.display
 from pygame.locals import *
 
 import glm
+import math
 
 from gl import Renderer
 from buffer import Buffer
@@ -19,16 +20,18 @@ deltaTime = 0.0
 screen = pygame.display.set_mode((width, height), pygame.DOUBLEBUF | pygame.OPENGL)
 clock = pygame.time.Clock()
 
+pygame.display.set_caption("OpenGL Model Viewer - Lab 10")
 
 rend = Renderer(screen)
 rend.pointLight = glm.vec3(1,1,1)
 
 # Default to new custom shaders
-currVertexShader = twist_vertex_shader
-currFragmentShader = fresnel_fragment_shader
+currVertexShader = vertex_shader
+currFragmentShader = fragment_shader
 
 rend.SetShaders(currVertexShader, currFragmentShader)
 
+# NEW SKYBOX - Different from class
 skyboxTextures = ["skybox/right.jpg",
 				  "skybox/left.jpg",
 				  "skybox/top.jpg",
@@ -39,17 +42,80 @@ skyboxTextures = ["skybox/right.jpg",
 rend.CreateSkybox(skyboxTextures)
 
 
-# Load Bucket Axolotl model with its texture
-axolotl = Model("models/BucketAxolotl/Bucket_axolotl.obj")
-axolotl.AddTexture("textures/BucketAxolotl/lucy.png")
-# Optional: add second texture if you want to try multi-texture shaders
-# axolotl.AddTexture("textures/BucketAxolotl/internal_ground_ao_texture.jpeg")
-axolotl.position.z = -5
-axolotl.scale = glm.vec3(0.05, 0.05, 0.05)
+# ========== LOAD THREE MODELS ==========
 
-rend.scene.append(axolotl)
+# Model 1: Bucket Axolotl
+model1 = Model("models/BucketAxolotl/Bucket_axolotl.obj")
+model1.AddTexture("textures/BucketAxolotl/lucy.png")
+model1.position = glm.vec3(0, 0, 0)
+model1.scale = glm.vec3(0.05, 0.05, 0.05)
+
+# Model 2: Sphere
+model2 = Model("models/sphere.obj")
+model2.AddTexture("textures/model.bmp")
+model2.position = glm.vec3(0, 0, 0)
+model2.scale = glm.vec3(1.5, 1.5, 1.5)
+
+# Model 3: Generic Model
+model3 = Model("models/model.obj")
+model3.AddTexture("textures/model.bmp")
+model3.position = glm.vec3(0, 0, 0)
+model3.scale = glm.vec3(1.0, 1.0, 1.0)
+
+# Store all models in a list
+allModels = [model1, model2, model3]
+currentModelIndex = 0  # Start with first model
+
+# Only add the current model to the scene
+rend.scene.append(allModels[currentModelIndex])
+
+# Setup orbital camera to look at the current model
+rend.camera.SetTarget(allModels[currentModelIndex].position)
+rend.camera.distance = 5.0
+rend.camera.orbitMode = True
+
+# Mouse control variables
+mousePressed = False
+lastMousePos = (0, 0)
+mouseSensitivity = 0.005  # Radians per pixel
 
 isRunning = True
+
+# Print controls to console
+print("=" * 60)
+print("OPENGL MODEL VIEWER - CONTROLS")
+print("=" * 60)
+print("\n--- MODEL SELECTION ---")
+print("M / N: Switch between models (only one visible at a time)")
+print("\n--- SHADERS ---")
+print("Fragment Shaders:")
+print("  0: Reset to default (basic lighting)")
+print("  1: Checker pattern")
+print("  2: Fresnel rim lighting")
+print("  3: Scanlines effect")
+print("  5: Unlit (no lighting)")
+print("\nVertex Shaders:")
+print("  6: Basic vertex shader")
+print("  7: Twist effect")
+print("  8: Pulse effect")
+print("  9: Ripple effect")
+print("\n--- CAMERA CONTROLS (ORBITAL MODE) ---")
+print("Mouse:")
+print("  Right-Click + Drag: Rotate around model")
+print("  Mouse Wheel: Zoom in/out")
+print("\nKeyboard:")
+print("  Arrow Keys: Rotate around model")
+print("  W/S: Move camera up/down (with limits)")
+print("  A/D: Zoom in/out")
+print("  C: Toggle camera mode (orbital/free)")
+print("\n--- LIGHTING ---")
+print("T/G: Move light Z")
+print("F/H: Move light X")
+print("R/Y: Move light Y")
+print("\n--- OTHER ---")
+print("Z/X: Adjust shader value parameter")
+print("ESC or Close Window: Exit")
+print("=" * 60)
 
 while isRunning:
 
@@ -64,96 +130,191 @@ while isRunning:
 			isRunning = False
 
 		elif event.type == pygame.KEYDOWN:
+			
+			# Exit with ESC
+			if event.key == pygame.K_ESCAPE:
+				isRunning = False
 
-			# Reset/clear shader options
+			# ========== MODEL SWITCHING ==========
+			if event.key == pygame.K_m:
+				# Previous model
+				rend.scene.clear()
+				currentModelIndex = (currentModelIndex - 1) % len(allModels)
+				rend.scene.append(allModels[currentModelIndex])
+				rend.camera.SetTarget(allModels[currentModelIndex].position)
+				print(f"Switched to Model {currentModelIndex + 1}")
+
+			if event.key == pygame.K_n:
+				# Next model
+				rend.scene.clear()
+				currentModelIndex = (currentModelIndex + 1) % len(allModels)
+				rend.scene.append(allModels[currentModelIndex])
+				rend.camera.SetTarget(allModels[currentModelIndex].position)
+				print(f"Switched to Model {currentModelIndex + 1}")
+
+			# ========== CAMERA MODE ==========
+			if event.key == pygame.K_c:
+				rend.camera.ToggleCameraMode()
+				mode = "Orbital" if rend.camera.orbitMode else "Free"
+				print(f"Camera Mode: {mode}")
+
+			# ========== SHADER SELECTION ==========
+			# Fragment shaders
 			if event.key == pygame.K_0:
-				# Reset both: basic vertex + unlit fragment
+				# Reset both: basic vertex + basic fragment
 				currVertexShader = vertex_shader
-				currFragmentShader = unlit_fragment_shader
+				currFragmentShader = fragment_shader
 				rend.SetShaders(currVertexShader, currFragmentShader)
+				print("Shaders: Default (basic lighting)")
 
 			if event.key == pygame.K_1:
 				currFragmentShader = checker_fragment_shader
 				rend.SetShaders(currVertexShader, currFragmentShader)
+				print("Fragment Shader: Checker pattern")
 
 			if event.key == pygame.K_2:
 				currFragmentShader = fresnel_fragment_shader
 				rend.SetShaders(currVertexShader, currFragmentShader)
+				print("Fragment Shader: Fresnel rim lighting")
 
 			if event.key == pygame.K_3:
 				currFragmentShader = scanlines_fragment_shader
 				rend.SetShaders(currVertexShader, currFragmentShader)
+				print("Fragment Shader: Scanlines")
 
 			if event.key == pygame.K_5:
 				# Unlit fragment (clear fragment effects)
 				currFragmentShader = unlit_fragment_shader
 				rend.SetShaders(currVertexShader, currFragmentShader)
+				print("Fragment Shader: Unlit")
 
-
+			# Vertex shaders
 			if event.key == pygame.K_6:
 				# Basic vertex (clear vertex effects)
 				currVertexShader = vertex_shader
 				rend.SetShaders(currVertexShader, currFragmentShader)
+				print("Vertex Shader: Basic")
 
 			if event.key == pygame.K_7:
 				currVertexShader = twist_vertex_shader
 				rend.SetShaders(currVertexShader, currFragmentShader)
+				print("Vertex Shader: Twist")
 
 			if event.key == pygame.K_8:
 				currVertexShader = pulse_vertex_shader
 				rend.SetShaders(currVertexShader, currFragmentShader)
+				print("Vertex Shader: Pulse")
 
 			if event.key == pygame.K_9:
 				currVertexShader = ripple_vertex_shader
 				rend.SetShaders(currVertexShader, currFragmentShader)
+				print("Vertex Shader: Ripple")
+
+		# ========== MOUSE CONTROLS ==========
+		elif event.type == pygame.MOUSEBUTTONDOWN:
+			if event.button == 3:  # Right mouse button
+				mousePressed = True
+				lastMousePos = pygame.mouse.get_pos()
+				pygame.mouse.set_visible(False)
+			elif event.button == 4:  # Mouse wheel up (zoom in)
+				rend.camera.Zoom(-0.5)
+			elif event.button == 5:  # Mouse wheel down (zoom out)
+				rend.camera.Zoom(0.5)
+
+		elif event.type == pygame.MOUSEBUTTONUP:
+			if event.button == 3:  # Right mouse button released
+				mousePressed = False
+				pygame.mouse.set_visible(True)
+
+		elif event.type == pygame.MOUSEMOTION:
+			if mousePressed:
+				currentMousePos = pygame.mouse.get_pos()
+				deltaX = currentMousePos[0] - lastMousePos[0]
+				deltaY = currentMousePos[1] - lastMousePos[1]
+				
+				# Horizontal rotation (yaw)
+				rend.camera.OrbitHorizontal(deltaX * mouseSensitivity)
+				# Vertical rotation (pitch) - inverted for natural feel
+				rend.camera.OrbitVertical(-deltaY * mouseSensitivity)
+				
+				lastMousePos = currentMousePos
 
 
-	# Camera-relative movement
-	moveSpeed = 1.3
-	identity = glm.mat4(1)
-	pitchMat = glm.rotate(identity, glm.radians(rend.camera.rotation.x), glm.vec3(1,0,0))
-	yawMat   = glm.rotate(identity, glm.radians(rend.camera.rotation.y), glm.vec3(0,1,0))
-	rollMat  = glm.rotate(identity, glm.radians(rend.camera.rotation.z), glm.vec3(0,0,1))
-	rotationMat = pitchMat * yawMat * rollMat
+	# ========== KEYBOARD CAMERA CONTROLS ==========
+	if rend.camera.orbitMode:
+		# Orbital camera controls
+		orbitSpeed = 1.5  # radians per second
+		zoomSpeed = 4.0   # units per second
+		verticalSpeed = 1.5  # radians per second for vertical movement
 
-	# Local axes in world space
-	right   = glm.normalize(glm.vec3(rotationMat * glm.vec4(1,0,0,0)))
-	up      = glm.normalize(glm.vec3(rotationMat * glm.vec4(0,1,0,0)))
-	forward = glm.normalize(glm.vec3(rotationMat * glm.vec4(0,0,-1,0)))
+		# Arrow keys: Rotate around model
+		if keys[K_LEFT]:
+			rend.camera.OrbitHorizontal(orbitSpeed * deltaTime)
+		if keys[K_RIGHT]:
+			rend.camera.OrbitHorizontal(-orbitSpeed * deltaTime)
+		if keys[K_UP]:
+			rend.camera.OrbitVertical(verticalSpeed * deltaTime)
+		if keys[K_DOWN]:
+			rend.camera.OrbitVertical(-verticalSpeed * deltaTime)
 
-	if keys[K_UP]:
-		rend.camera.position += forward * (moveSpeed * deltaTime)
+		# W/S: Move camera up and down (with limits)
+		if keys[K_w]:
+			rend.camera.OrbitVertical(verticalSpeed * deltaTime)
+		if keys[K_s]:
+			rend.camera.OrbitVertical(-verticalSpeed * deltaTime)
 
-	if keys[K_DOWN]:
-		rend.camera.position -= forward * (moveSpeed * deltaTime)
+		# A/D: Zoom in and out
+		if keys[K_a]:
+			rend.camera.Zoom(-zoomSpeed * deltaTime)
+		if keys[K_d]:
+			rend.camera.Zoom(zoomSpeed * deltaTime)
 
-	if keys[K_RIGHT]:
-		rend.camera.position += right * (moveSpeed * deltaTime)
+	else:
+		# Free camera mode (original behavior)
+		moveSpeed = 1.3
+		identity = glm.mat4(1)
+		pitchMat = glm.rotate(identity, glm.radians(rend.camera.rotation.x), glm.vec3(1,0,0))
+		yawMat   = glm.rotate(identity, glm.radians(rend.camera.rotation.y), glm.vec3(0,1,0))
+		rollMat  = glm.rotate(identity, glm.radians(rend.camera.rotation.z), glm.vec3(0,0,1))
+		rotationMat = pitchMat * yawMat * rollMat
 
-	if keys[K_LEFT]:
-		rend.camera.position -= right * (moveSpeed * deltaTime)
+		# Local axes in world space
+		right   = glm.normalize(glm.vec3(rotationMat * glm.vec4(1,0,0,0)))
+		up      = glm.normalize(glm.vec3(rotationMat * glm.vec4(0,1,0,0)))
+		forward = glm.normalize(glm.vec3(rotationMat * glm.vec4(0,0,-1,0)))
 
+		if keys[K_UP]:
+			rend.camera.position += forward * (moveSpeed * deltaTime)
 
-	# Camera rotation controls (degrees per second)
-	rotSpeed = 35.0
+		if keys[K_DOWN]:
+			rend.camera.position -= forward * (moveSpeed * deltaTime)
 
-	# Pitch (X axis): W/S
-	if keys[K_w]:
-		rend.camera.rotation.x += rotSpeed * deltaTime
-	if keys[K_s]:
-		rend.camera.rotation.x -= rotSpeed * deltaTime
+		if keys[K_RIGHT]:
+			rend.camera.position += right * (moveSpeed * deltaTime)
 
-	# Yaw (Y axis): A/D
-	if keys[K_a]:
-		rend.camera.rotation.y += rotSpeed * deltaTime
-	if keys[K_d]:
-		rend.camera.rotation.y -= rotSpeed * deltaTime
+		if keys[K_LEFT]:
+			rend.camera.position -= right * (moveSpeed * deltaTime)
 
-	# Roll (Z axis): Q/E
-	if keys[K_q]:
-		rend.camera.rotation.z += rotSpeed * deltaTime
-	if keys[K_e]:
-		rend.camera.rotation.z -= rotSpeed * deltaTime
+		# Camera rotation controls (degrees per second)
+		rotSpeed = 35.0
+
+		# Pitch (X axis): W/S
+		if keys[K_w]:
+			rend.camera.rotation.x += rotSpeed * deltaTime
+		if keys[K_s]:
+			rend.camera.rotation.x -= rotSpeed * deltaTime
+
+		# Yaw (Y axis): A/D
+		if keys[K_a]:
+			rend.camera.rotation.y += rotSpeed * deltaTime
+		if keys[K_d]:
+			rend.camera.rotation.y -= rotSpeed * deltaTime
+
+		# Roll (Z axis): Q/E
+		if keys[K_q]:
+			rend.camera.rotation.z += rotSpeed * deltaTime
+		if keys[K_e]:
+			rend.camera.rotation.z -= rotSpeed * deltaTime
 
 
 
