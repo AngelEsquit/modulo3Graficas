@@ -31,13 +31,12 @@ currFragmentShader = fragment_shader
 
 rend.SetShaders(currVertexShader, currFragmentShader)
 
-# NEW SKYBOX - Different from class
-skyboxTextures = ["skybox/right.jpg",
-				  "skybox/left.jpg",
-				  "skybox/top.jpg",
-				  "skybox/bottom.jpg",
-				  "skybox/front.jpg",
-				  "skybox/back.jpg"]
+skyboxTextures = ["skybox/right.png",
+				  "skybox/left.png",
+				  "skybox/top.png",
+				  "skybox/bottom.png",
+				  "skybox/front.png",
+				  "skybox/back.png"]
 
 rend.CreateSkybox(skyboxTextures)
 
@@ -50,19 +49,22 @@ model1.AddTexture("textures/BucketAxolotl/lucy.png")
 model1.position = glm.vec3(0, 0, 0)
 model1.scale = glm.vec3(0.05, 0.05, 0.05)
 
-# Model 2: Sphere
-model2 = Model("models/sphere.obj")
-model2.AddTexture("textures/model.bmp")
+# Model 2: Yoshi
+model2 = Model("models/Yoshi/yoshi.obj")
+model2.AddTexture("textures/Yoshi/yoshi.png")
 model2.position = glm.vec3(0, 0, 0)
-model2.scale = glm.vec3(1.5, 1.5, 1.5)
+model2.scale = glm.vec3(0.9, 0.9, 0.9)
 
-# Model 3: Generic Model
-model3 = Model("models/model.obj")
-model3.AddTexture("textures/model.bmp")
-model3.position = glm.vec3(0, 0, 0)
-model3.scale = glm.vec3(1.0, 1.0, 1.0)
+# Model 3: Crash (multiple textures)
+model3 = Model("models/Crash/crashbandicoot.obj")
+# Crash uses multiple texture maps (color, shoes, back)
+model3.AddTexture("textures/Crash/color_pallete.png")
+model3.AddTexture("textures/Crash/shoes.png")
+model3.AddTexture("textures/Crash/back.png")
+model3.position = glm.vec3(0, -3, -10)
+model3.scale = glm.vec3(0.01, 0.01, 0.01)
 
-# Store all models in a list
+# Store all models in a list (Bucket, Yoshi, Crash)
 allModels = [model1, model2, model3]
 currentModelIndex = 0  # Start with first model
 
@@ -76,8 +78,10 @@ rend.camera.orbitMode = True
 
 # Mouse control variables
 mousePressed = False
+mouseButton = None
 lastMousePos = (0, 0)
-mouseSensitivity = 0.005  # Radians per pixel
+mouseSensitivity = 0.005  # Radians per pixel (used for orbital)
+freeMouseSensitivity = 0.005  # Radians per pixel mapped to degrees for free camera
 
 isRunning = True
 
@@ -101,7 +105,7 @@ print("  8: Pulse effect")
 print("  9: Ripple effect")
 print("\n--- CAMERA CONTROLS (ORBITAL MODE) ---")
 print("Mouse:")
-print("  Right-Click + Drag: Rotate around model")
+print("  Right-Click or Left-Click + Drag: Rotate around model")
 print("  Mouse Wheel: Zoom in/out")
 print("\nKeyboard:")
 print("  Arrow Keys: Rotate around model")
@@ -212,8 +216,10 @@ while isRunning:
 
 		# ========== MOUSE CONTROLS ==========
 		elif event.type == pygame.MOUSEBUTTONDOWN:
-			if event.button == 3:  # Right mouse button
+			# Support left (1) or right (3) click for rotation
+			if event.button == 1 or event.button == 3:
 				mousePressed = True
+				mouseButton = event.button
 				lastMousePos = pygame.mouse.get_pos()
 				pygame.mouse.set_visible(False)
 			elif event.button == 4:  # Mouse wheel up (zoom in)
@@ -222,8 +228,9 @@ while isRunning:
 				rend.camera.Zoom(0.5)
 
 		elif event.type == pygame.MOUSEBUTTONUP:
-			if event.button == 3:  # Right mouse button released
+			if event.button == 1 or event.button == 3:
 				mousePressed = False
+				mouseButton = None
 				pygame.mouse.set_visible(True)
 
 		elif event.type == pygame.MOUSEMOTION:
@@ -232,10 +239,16 @@ while isRunning:
 				deltaX = currentMousePos[0] - lastMousePos[0]
 				deltaY = currentMousePos[1] - lastMousePos[1]
 				
-				# Horizontal rotation (yaw)
-				rend.camera.OrbitHorizontal(deltaX * mouseSensitivity)
-				# Vertical rotation (pitch) - inverted for natural feel
-				rend.camera.OrbitVertical(-deltaY * mouseSensitivity)
+				if rend.camera.orbitMode:
+					# Orbital camera: rotate around target
+					rend.camera.OrbitHorizontal(deltaX * mouseSensitivity)
+					# Vertical rotation (pitch) - inverted for natural feel
+					rend.camera.OrbitVertical(-deltaY * mouseSensitivity)
+				else:
+					# Free camera: adjust Euler angles (degrees)
+					deg_per_pixel = mouseSensitivity * (180.0 / 3.14159265)
+					rend.camera.rotation.y += -deltaX * deg_per_pixel
+					rend.camera.rotation.x += -deltaY * deg_per_pixel
 				
 				lastMousePos = currentMousePos
 

@@ -45,43 +45,83 @@ class Model(object):
 
 		for face in self.objFile.faces:
 
+			# Collect per-vertex data for this face handling missing vt or vn entries
 			facePositions = []
 			faceTexCoords = []
 			faceNormals = []
 
+			# Helper to safely get indices (OBJ uses 1-based indices)
 			for i in range(len(face)):
-				facePositions.append( self.objFile.vertices [ face[i][0] - 1 ] )
-				faceTexCoords.append( self.objFile.texCoords[ face[i][1] - 1 ] )
-				faceNormals.append( self.objFile.normals[ face[i][2] - 1 ] )
+				v_idx = face[i][0] - 1 if len(face[i]) >= 1 and face[i][0] != 0 else None
+				vt_idx = face[i][1] - 1 if len(face[i]) >= 2 and face[i][1] != 0 else None
+				vn_idx = face[i][2] - 1 if len(face[i]) >= 3 and face[i][2] != 0 else None
 
+				# Position is mandatory in most OBJ files; skip vertex if missing
+				if v_idx is None:
+					continue
+				facePositions.append(self.objFile.vertices[v_idx])
 
-			for value in facePositions[0]: positions.append(value)
-			for value in facePositions[1]: positions.append(value)
-			for value in facePositions[2]: positions.append(value)
+				# Texcoords may be missing
+				if vt_idx is not None and vt_idx < len(self.objFile.texCoords):
+					faceTexCoords.append(self.objFile.texCoords[vt_idx])
+				else:
+					faceTexCoords.append([0.0, 0.0])
 
-			for value in faceTexCoords[0]: texCoords.append(value)
-			for value in faceTexCoords[1]: texCoords.append(value)
-			for value in faceTexCoords[2]: texCoords.append(value)
+				# Normals may be missing; use None as placeholder
+				if vn_idx is not None and vn_idx < len(self.objFile.normals):
+					faceNormals.append(self.objFile.normals[vn_idx])
+				else:
+					faceNormals.append(None)
 
-			for value in faceNormals[0]: normals.append(value)
-			for value in faceNormals[1]: normals.append(value)
-			for value in faceNormals[2]: normals.append(value)
+			# If any normal is missing, compute face normal from the first three positions
+			if any(n is None for n in faceNormals):
+				# Need at least 3 positions to compute normal
+				if len(facePositions) >= 3:
+					p0 = facePositions[0]
+					p1 = facePositions[1]
+					p2 = facePositions[2]
+					# compute vectors
+					ux = p1[0] - p0[0]; uy = p1[1] - p0[1]; uz = p1[2] - p0[2]
+					vx = p2[0] - p0[0]; vy = p2[1] - p0[1]; vz = p2[2] - p0[2]
+					# cross product u x v
+					nx = uy * vz - uz * vy
+					ny = uz * vx - ux * vz
+					nz = ux * vy - uy * vx
+					# normalize
+					length = (nx * nx + ny * ny + nz * nz) ** 0.5
+					if length == 0:
+						fn = [0.0, 1.0, 0.0]
+					else:
+						fn = [nx / length, ny / length, nz / length]
+					# replace None normals with face normal
+					for idx in range(len(faceNormals)):
+						if faceNormals[idx] is None:
+							faceNormals[idx] = fn
+				else:
+					# Fallback normal if insufficient vertices
+					for idx in range(len(faceNormals)):
+						if faceNormals[idx] is None:
+							faceNormals[idx] = [0.0, 1.0, 0.0]
 
-			self.vertexCount += 3
+			# Append triangle vertices (triangulate quads if necessary)
 
-			if len(face) == 4:
-				for value in facePositions[0]: positions.append(value)
-				for value in facePositions[2]: positions.append(value)
-				for value in facePositions[3]: positions.append(value)
+			def append_vertex_triplet(p, t, n):
+				for value in p: positions.append(value)
+				for value in t: texCoords.append(value)
+				for value in n: normals.append(value)
 
-				for value in faceTexCoords[0]: texCoords.append(value)
-				for value in faceTexCoords[2]: texCoords.append(value)
-				for value in faceTexCoords[3]: texCoords.append(value)
+			# Triangles: straightforward
+			if len(facePositions) >= 3:
+				append_vertex_triplet(facePositions[0], faceTexCoords[0], faceNormals[0])
+				append_vertex_triplet(facePositions[1], faceTexCoords[1], faceNormals[1])
+				append_vertex_triplet(facePositions[2], faceTexCoords[2], faceNormals[2])
+				self.vertexCount += 3
 
-				for value in faceNormals[0]: normals.append(value)
-				for value in faceNormals[2]: normals.append(value)
-				for value in faceNormals[3]: normals.append(value)
-
+			# If face is a quad (4 vertices), create second triangle 0,2,3
+			if len(facePositions) == 4:
+				append_vertex_triplet(facePositions[0], faceTexCoords[0], faceNormals[0])
+				append_vertex_triplet(facePositions[2], faceTexCoords[2], faceNormals[2])
+				append_vertex_triplet(facePositions[3], faceTexCoords[3], faceNormals[3])
 				self.vertexCount += 3
 
 

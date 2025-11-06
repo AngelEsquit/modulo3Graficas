@@ -1,4 +1,4 @@
-# Laboratorio 9
+# Laboratorio 10
 
 ## Ejecución
 Para ejecutar el renderizador, corre el archivo `RendererOpenGL2025.py`.

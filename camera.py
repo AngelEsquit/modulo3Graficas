@@ -6,8 +6,8 @@ class Camera(object):
 
 		self.screenWidth = width
 		self.screenHeight = height
-		
-		self.position = glm.vec3(0,0.6,0)
+
+		self.position = glm.vec3(0, 10, 0)
 
 		# Angulos de Euler
 		self.rotation = glm.vec3(0,0,0)
