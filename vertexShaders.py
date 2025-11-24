@@ -113,13 +113,12 @@ uniform mat4 modelMatrix;
 uniform mat4 viewMatrix;
 uniform mat4 projectionMatrix;
 
-uniform float time;   // animation time
 uniform float value;  // twist intensity (radians per unit height)
 
 void main()
 {
-    // Angle increases with vertex height and time
-    float angle = value * inPosition.y + time * 0.75;
+    // Angle increases with vertex height only
+    float angle = value * inPosition.y;
     float s = sin(angle);
     float c = cos(angle);
 
@@ -204,6 +203,53 @@ void main()
     vec3 displacedPos = inPosition + inNormals * wave;
 
     fragPosition = modelMatrix * vec4(displacedPos, 1.0);
+    gl_Position = projectionMatrix * viewMatrix * fragPosition;
+
+    fragNormal = normalize(vec3(modelMatrix * vec4(inNormals, 0.0)));
+    fragTexCoords = inTexCoords;
+}
+
+'''
+
+
+screen_quad_vertex_shader = '''
+#version 330 core
+
+layout (location = 0) in vec2 inPosition;
+layout (location = 1) in vec2 inTexCoords;
+
+out vec2 fragUV;
+
+void main()
+{
+    fragUV = inTexCoords;
+    gl_Position = vec4(inPosition, 0.0, 1.0);
+}
+
+'''
+
+
+decal_vertex_shader = '''
+#version 330 core
+
+layout (location = 0) in vec3 inPosition;
+layout (location = 1) in vec2 inTexCoords;
+layout (location = 2) in vec3 inNormals;
+
+out vec2 fragTexCoords;
+out vec3 fragNormal;
+out vec4 fragPosition;
+out vec3 localPosition;
+
+uniform mat4 modelMatrix;
+uniform mat4 viewMatrix;
+uniform mat4 projectionMatrix;
+
+void main()
+{
+    localPosition = inPosition;
+
+    fragPosition = modelMatrix * vec4(inPosition, 1.0);
     gl_Position = projectionMatrix * viewMatrix * fragPosition;
 
     fragNormal = normalize(vec3(modelMatrix * vec4(inNormals, 0.0)));

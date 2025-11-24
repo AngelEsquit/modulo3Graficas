@@ -232,3 +232,142 @@ void main()
 
 
 
+mask_vignette_fragment_shader = '''
+#version 330 core
+
+in vec2 fragUV;
+
+out vec4 fragColor;
+
+uniform sampler2D sceneTex;
+uniform sampler2D maskTex;
+uniform float blend;
+uniform float smoothness;
+uniform vec2 maskScale;
+uniform float invertMask;
+uniform vec3 exteriorColor;
+
+void main()
+{
+    vec2 centered = fragUV * 2.0 - 1.0;
+    centered *= maskScale;
+    vec2 maskUV = centered * 0.5 + 0.5;
+
+    float maskValue = 0.0;
+    if (maskUV.x >= 0.0 && maskUV.x <= 1.0 && maskUV.y >= 0.0 && maskUV.y <= 1.0)
+    {
+        vec4 maskSample = texture(maskTex, maskUV);
+        maskValue = maskSample.a;
+        if (maskValue <= 0.0001)
+        {
+            maskValue = max(maskSample.r, max(maskSample.g, maskSample.b));
+        }
+    }
+
+    maskValue = clamp(maskValue, 0.0, 1.0);
+    maskValue = invertMask > 0.5 ? 1.0 - maskValue : maskValue;
+
+    if (smoothness > 0.0001)
+    {
+        float edge = 1.0 - smoothness;
+        maskValue = smoothstep(edge, 1.0, maskValue);
+    }
+
+    float mixFactor = mix(1.0, maskValue, clamp(blend, 0.0, 1.0));
+    vec3 sceneColor = texture(sceneTex, fragUV).rgb;
+    vec3 result = mix(exteriorColor, sceneColor, mixFactor);
+    fragColor = vec4(result, 1.0);
+}
+
+'''
+
+
+
+decal_fragment_shader = '''
+#version 330 core
+
+in vec2 fragTexCoords;
+in vec3 fragNormal;
+in vec4 fragPosition;
+in vec3 localPosition;
+
+out vec4 fragColor;
+
+uniform sampler2D tex0;
+uniform sampler2D tex1;
+uniform vec3 pointLight;
+uniform float ambientLight;
+
+uniform int decalEnabled;
+uniform float decalStrength;
+uniform float decalDepth;
+uniform vec3 decalCenter;
+uniform vec3 decalNormal;
+uniform vec3 decalUp;
+uniform vec2 decalSize;
+
+void main()
+{
+    vec3 lightDir = normalize(pointLight - fragPosition.xyz);
+    float intensity = max(0.0, dot(fragNormal, lightDir)) + ambientLight;
+    vec3 baseColor = texture(tex0, fragTexCoords).rgb * intensity;
+
+    if (decalEnabled == 0)
+    {
+        fragColor = vec4(baseColor, 1.0);
+        return;
+    }
+
+    vec3 N = normalize(decalNormal);
+    vec3 U = normalize(decalUp - N * dot(decalUp, N));
+    if (length(U) < 1e-4)
+    {
+        U = vec3(0.0, 1.0, 0.0);
+        if (abs(dot(U, N)) > 0.95)
+        {
+            U = vec3(1.0, 0.0, 0.0);
+        }
+        U = normalize(U - N * dot(U, N));
+    }
+    vec3 R = normalize(cross(N, U));
+    U = normalize(cross(R, N));
+
+    vec3 relative = localPosition - decalCenter;
+    float depth = dot(relative, N);
+
+    if (abs(depth) > decalDepth * 0.5)
+    {
+        fragColor = vec4(baseColor, 1.0);
+        return;
+    }
+
+    vec2 projected;
+    projected.x = dot(relative, R);
+    projected.y = dot(relative, U);
+
+    vec2 safeSize = max(decalSize, vec2(1e-5));
+    vec2 uv = projected / safeSize + vec2(0.5);
+
+    if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0)
+    {
+        fragColor = vec4(baseColor, 1.0);
+        return;
+    }
+
+    vec4 decalSample = texture(tex1, uv);
+    float decalAlpha = decalSample.a;
+    if (decalAlpha <= 0.0)
+    {
+        fragColor = vec4(baseColor, 1.0);
+        return;
+    }
+
+    vec3 combined = mix(baseColor, decalSample.rgb, clamp(decalAlpha * decalStrength, 0.0, 1.0));
+    fragColor = vec4(combined, 1.0);
+}
+
+'''
+
+
+
+

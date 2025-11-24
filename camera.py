@@ -92,5 +92,15 @@ class Camera(object):
 		self.orbitMode = not self.orbitMode
 
 
+	def FocusOn(self, target, *, distance=None, reset_angles=False):
+		"""Move the orbital camera target to *target* and optionally adjust distance/angles."""
+		self.SetTarget(target)
+		if distance is not None:
+			self.distance = max(self.minDistance, min(self.maxDistance, distance))
+		if reset_angles:
+			self.orbitAngleY = 0.0
+			self.orbitAngleX = 0.3
+
+
 	def CreateProjectionMatrix(self, fov, nearPlane, farPlane):
 		self.projectionMatrix = glm.perspective( glm.radians(fov), self.screenWidth / self.screenHeight, nearPlane, farPlane)
