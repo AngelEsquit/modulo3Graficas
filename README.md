@@ -17,6 +17,6 @@ Para ejecutar el renderizador, corre el archivo `RendererOpenGL2025.py`.
 ![Referencia](assets/Referencia.avif)
 
 ## Resultado
-<video width="100%" controls autoplay>
+<video width="100%" controls>
   <source src="Resultado.mp4" type="video/mp4">
 </video>
